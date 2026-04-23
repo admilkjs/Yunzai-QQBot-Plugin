@@ -214,7 +214,7 @@ async function getWeekChartData (uin) {
 }
 async function getcallStat (uin) {
   const dau = Bot[uin].dau
-  const callStat = _.entries(dau.call_stats).sort((a, b) => b[1] - a[1])
+  const callStat = Object.entries(dau.call_stats || {}).sort((a, b) => b[1] - a[1])
   const data = await dau.callStat(callStat, true)
   return data.group.map((i) => ({
     num: i.num,
