@@ -98,6 +98,74 @@ TRSS-Yunzai QQBot 适配器 插件
   }
 ```
 - 后端搭建[[QQBotWs](https://github.com/Admilkk/QQBotWs)]
+18. `config/QQBot.yaml`中`file`配置用于控制文件发送链路
+```yml
+file:
+  enable: true
+  preferUrlUpload: true
+  groupBase64Upload: true
+  privateForceChunk: true
+  allowForceChunk: true
+  autoExtractName: true
+  appendRecallIds: true
+```
+- `enable`: 是否启用 `segment.file(...)` 文件发送
+- `preferUrlUpload`: 网络文件优先 URL 直传
+- `groupBase64Upload`: 群文件优先走 base64 上传
+- `privateForceChunk`: 私聊默认走分片上传
+- `allowForceChunk`: 允许 `segment.file(url, name, true)` 或对象形式强制分片
+- `autoExtractName`: 未传文件名时自动从 URL/文件头推断
+- `appendRecallIds`: 将文件消息 ID 合并进发送返回值，支持统一撤回
+19. 当前代码已按职责拆分模块
+- `Model/file.js`: 文件上传、分片、降级和撤回 ID 回填
+- `Model/message.js`: 普通消息、Markdown、频道消息的构造与发送
+- `Model/session.js`: pick 对象、消息映射、好友/群/频道缓存同步
+- `Model/event.js`: notice/callback 事件分发
+- `Model/connector.js`: SDK 初始化、bus 代理、事件注册
+- `Model/admin.js`: 管理命令、帮助、设置与统计入口
+
+## 配置示例
+
+```yml
+permission: master
+toQRCode: true
+toCallback: true
+toBotUpload: true
+imageUploadProvider: bot
+groupIncreaseMsg: true
+oneKeySendGroupMsg: true
+hideGuildRecall: false
+toQQUin: false
+toImg: true
+callStats: false
+userStats: false
+sendButton: true
+simplifiedSdkLog: false
+markdownImgScale: 1
+sep: ""
+dauDB: redis
+
+file:
+  enable: true
+  preferUrlUpload: true
+  groupBase64Upload: true
+  privateForceChunk: true
+  allowForceChunk: true
+  autoExtractName: true
+  appendRecallIds: true
+
+bot:
+  sandbox: false
+  maxRetry: 0
+  timeout: 30000
+
+token:
+  - "机器人QQ:AppID:Token:AppSecret:1:1"
+```
+
+- `maxRetry: 0` 在面板里表示无限重连，保存后会转成 `Infinity`
+- `file.appendRecallIds: true` 建议保持开启，否则文件消息不会并入统一撤回返回值
+- 如果你使用第三方图床，`toBotUpload` 仍然需要开启，实际渠道由 `imageUploadProvider` 控制
 
 ## 安装教程
 

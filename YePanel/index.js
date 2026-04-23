@@ -35,6 +35,14 @@ export default {
           title: 'DAU统计',
           icon: 'bxs:bar-chart-square'
         }
+      },
+      {
+        path: '/status',
+        name: 'status',
+        meta: {
+          title: '连接状态',
+          icon: 'mdi:heartbeat'
+        }
       }
     ]
   },
@@ -125,8 +133,126 @@ export default {
           }
         }
       }
+    },
+    {
+      url: '/get-status-data',
+      method: 'post',
+      handler: async () => {
+        const bots = []
+        Bot.uin.forEach(uin => {
+          if (Bot[uin].adapter?.name !== 'QQBot') return
+          bots.push(getBotStatus(uin))
+        })
+        return {
+          success: true,
+          data: {
+            bots,
+            summary: getStatusSummary(bots)
+          }
+        }
+      }
+    },
+    {
+      url: '/reconnect-bot',
+      method: 'post',
+      handler: async ({ body }) => {
+        const uin = body?.uin
+        if (!uin) {
+          return { success: false, message: '缺少机器人账号' }
+        }
+
+        const token = config.token.find(item => item.startsWith(`${uin}:`))
+        if (!token) {
+          return { success: false, message: '未找到对应 token 配置' }
+        }
+
+        try {
+          if (Bot[uin]?.health) {
+            Bot[uin].health.status = 'reconnecting'
+            Bot[uin].health.updatedAt = Date.now()
+            Bot[uin].health.reconnectCount = (Bot[uin].health.reconnectCount || 0) + 1
+          }
+          if (Bot[uin]?.logout) {
+            await Promise.race([
+              Bot[uin].logout(),
+              new Promise(resolve => setTimeout(resolve, 5000))
+            ])
+          }
+          const ok = await Bot[uin]?.adapter?.connect?.(token)
+          return {
+            success: !!ok,
+            message: ok ? '重连成功' : '重连失败'
+          }
+        } catch (error) {
+          return {
+            success: false,
+            message: error.message
+          }
+        }
+      }
     }
   ]
+}
+
+function getBotStatus (uin) {
+  const bot = Bot[uin]
+  const health = bot.health || {}
+  const ws = bot.sdk?.ws
+  const heartbeatAge = health.lastHeartbeatAt ? Date.now() - health.lastHeartbeatAt : null
+
+  return {
+    uin,
+    nickname: bot.nickname,
+    avatar: bot.avatar,
+    status: health.status || 'unknown',
+    statusLabel: getStatusLabel(health.status),
+    startedAt: health.startedAt || null,
+    updatedAt: health.updatedAt || null,
+    lastConnectAt: health.lastConnectAt || null,
+    lastReadyAt: health.lastReadyAt || null,
+    lastDisconnectAt: health.lastDisconnectAt || null,
+    lastHeartbeatAt: health.lastHeartbeatAt || null,
+    heartbeatAge,
+    lastErrorAt: health.lastErrorAt || null,
+    lastError: health.lastError || '',
+    reconnectCount: health.reconnectCount || 0,
+    closeCode: health.closeCode ?? null,
+    closeReason: health.closeReason || '',
+    isUsingBus: !!health.isUsingBus,
+    wsUrl: health.wsUrl || '',
+    readyState: ws?.readyState ?? null,
+    recvMsgCount: bot.stat?.recv_msg_cnt || 0,
+    sendMsgCount: bot.dau?.todayData?.send_msg_count || 0,
+    groupCount: bot.gl?.size || 0,
+    friendCount: bot.fl?.size || 0
+  }
+}
+
+function getStatusLabel (status) {
+  switch (status) {
+    case 'connected':
+      return '已连接'
+    case 'connecting':
+      return '连接中'
+    case 'reconnecting':
+      return '重连中'
+    case 'disconnected':
+      return '已断开'
+    case 'error':
+      return '异常'
+    default:
+      return '未知'
+  }
+}
+
+function getStatusSummary (bots) {
+  return {
+    total: bots.length,
+    connected: bots.filter(i => i.status === 'connected').length,
+    reconnecting: bots.filter(i => i.status === 'reconnecting').length,
+    disconnected: bots.filter(i => i.status === 'disconnected').length,
+    error: bots.filter(i => i.status === 'error').length
+  }
 }
 
 async function getDauChartData (uin) {

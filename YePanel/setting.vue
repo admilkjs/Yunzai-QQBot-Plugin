@@ -32,6 +32,8 @@ const state = ref({
   toBotUpload: false,
   imageUploadProvider: "bot",
   hideGuildRecall: false,
+  groupIncreaseMsg: false,
+  oneKeySendGroupMsg: false,
   toQQUin: false,
   toImg: false,
   sendButton: false,
@@ -40,6 +42,15 @@ const state = ref({
   simplifiedSdkLog: false,
   markdownImgScale: false,
   sep: "",
+  file: {
+    enable: false,
+    preferUrlUpload: false,
+    groupBase64Upload: false,
+    privateForceChunk: false,
+    allowForceChunk: false,
+    autoExtractName: false,
+    appendRecallIds: false,
+  },
   bot: {
     sandbox: false,
     maxRetry: 0,
@@ -357,6 +368,106 @@ const group: PlusFormGroupRow[] = [
         prop: "userStats",
         valueType: "switch",
         fieldProps,
+        colProps: {
+          span: 6,
+          xs: 12,
+        },
+      },
+      {
+        label: "入群欢迎",
+        prop: "groupIncreaseMsg",
+        valueType: "switch",
+        fieldProps,
+        colProps: {
+          span: 6,
+          xs: 12,
+        },
+      },
+      {
+        label: "一键群发",
+        prop: "oneKeySendGroupMsg",
+        valueType: "switch",
+        fieldProps,
+        colProps: {
+          span: 6,
+          xs: 12,
+        },
+      },
+    ],
+  },
+  {
+    title: "文件功能",
+    columns: [
+      {
+        label: "发送文件",
+        prop: "file.enable",
+        valueType: "switch",
+        fieldProps,
+        tooltip: "启用 segment.file 发送与迁移后的文件链路",
+        colProps: {
+          span: 6,
+          xs: 12,
+        },
+      },
+      {
+        label: "URL直传",
+        prop: "file.preferUrlUpload",
+        valueType: "switch",
+        fieldProps,
+        tooltip: "网络文件优先走官方 URL 直传，失败再降级",
+        colProps: {
+          span: 6,
+          xs: 12,
+        },
+      },
+      {
+        label: "群base64上传",
+        prop: "file.groupBase64Upload",
+        valueType: "switch",
+        fieldProps,
+        tooltip: "群文件优先使用 base64 上传，失败再走其他方案",
+        colProps: {
+          span: 6,
+          xs: 12,
+        },
+      },
+      {
+        label: "私聊强制分片",
+        prop: "file.privateForceChunk",
+        valueType: "switch",
+        fieldProps,
+        colProps: {
+          span: 6,
+          xs: 12,
+        },
+      },
+      {
+        label: "允许force_chunk",
+        prop: "file.allowForceChunk",
+        valueType: "switch",
+        fieldProps,
+        tooltip: "允许 segment.file 第三参数强制分片",
+        colProps: {
+          span: 6,
+          xs: 12,
+        },
+      },
+      {
+        label: "自动补文件名",
+        prop: "file.autoExtractName",
+        valueType: "switch",
+        fieldProps,
+        colProps: {
+          span: 6,
+          xs: 12,
+        },
+      },
+      {
+        label: "文件可撤回",
+        prop: "file.appendRecallIds",
+        valueType: "switch",
+        fieldProps,
+        tooltip: "将文件消息 ID 合并到返回结果，支持统一撤回",
         colProps: {
           span: 6,
           xs: 12,

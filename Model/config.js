@@ -10,6 +10,8 @@ let { config, configSave } = await makeConfig('QQBot', {
   toBotUpload: true,
   imageUploadProvider: 'bot',
   hideGuildRecall: false,
+  groupIncreaseMsg: true,
+  oneKeySendGroupMsg: true,
   toQQUin: false,
   toImg: true,
   callStats: false,
@@ -25,6 +27,15 @@ let { config, configSave } = await makeConfig('QQBot', {
   simplifiedSdkLog: false,
   markdownImgScale: 1.0,
   sep: '',
+  file: {
+    enable: true,
+    preferUrlUpload: true,
+    groupBase64Upload: true,
+    privateForceChunk: true,
+    allowForceChunk: true,
+    autoExtractName: true,
+    appendRecallIds: true
+  },
   bus: {},
   dauDB: 'redis',
   // dau: {
