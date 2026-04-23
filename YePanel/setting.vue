@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h, ref } from "vue";
+import { computed, h, ref } from "vue";
 import {
   type FieldValues,
   PlusForm,
@@ -30,6 +30,7 @@ const state = ref({
   toQRCode: "",
   toCallback: false,
   toBotUpload: false,
+  imageUploadProvider: "bot",
   hideGuildRecall: false,
   toQQUin: false,
   toImg: false,
@@ -109,6 +110,64 @@ const fieldProps = {
   activeValue: true,
   inactiveValue: false,
 };
+
+const imageUploadOptions = [
+  {
+    label: "Bot",
+    value: "bot",
+  },
+  {
+    label: "ChatGLM",
+    value: "chatglm",
+  },
+  {
+    label: "Ukaka",
+    value: "ukaka",
+  },
+  {
+    label: "星野",
+    value: "xingye",
+  },
+];
+
+const uploadProviderLabelMap = {
+  bot: "Bot 图链",
+  chatglm: "ChatGLM 图床",
+  ukaka: "Ukaka 图床",
+  xingye: "星野图床",
+};
+
+const activeUploadLabel = computed(
+  () => uploadProviderLabelMap[state.value.imageUploadProvider] || "Bot 图链"
+);
+
+const dashboardStats = computed(() => [
+  {
+    label: "Token 账号",
+    value: state.value.token.length,
+    desc: "当前已接入的 QQBot 账号数",
+  },
+  {
+    label: "上传渠道",
+    value: activeUploadLabel.value,
+    desc: state.value.toBotUpload ? "markdown 图片已开启上传" : "markdown 图片上传已关闭",
+  },
+  {
+    label: "Markdown 配置",
+    value: Object.keys(state.value.markdown || {}).length,
+    desc: "全局与分 Bot 模版总数",
+  },
+  {
+    label: "扩展开关",
+    value: [
+      state.value.toCallback,
+      state.value.toImg,
+      state.value.callStats,
+      state.value.userStats,
+    ].filter(Boolean).length,
+    desc: "按钮回调、转图、统计等已开启项",
+  },
+]);
 
 const group: PlusFormGroupRow[] = [
   {
@@ -223,11 +282,22 @@ const group: PlusFormGroupRow[] = [
         label: "上传图片",
         prop: "toBotUpload",
         valueType: "switch",
-        tooltip: "使用其他Bot上传图链",
+        tooltip: "开启后按下方渠道上传 markdown 图片",
         fieldProps,
         colProps: {
           span: 6,
           xs: 12,
+        },
+      },
+      {
+        label: "上传渠道",
+        prop: "imageUploadProvider",
+        valueType: "radio",
+        tooltip: "Bot 为原始方案，也支持 ChatGLM、Ukaka、星野图床",
+        options: imageUploadOptions,
+        colProps: {
+          span: 12,
+          xs: 23,
         },
       },
       {
@@ -624,159 +694,523 @@ const showDialog = (title: string, key: string | null, content: any) => {
 </script>
 
 <template>
-  <div>
+  <div class="settings-page">
+    <div class="settings-glow settings-glow-left" />
+    <div class="settings-glow settings-glow-right" />
+
     <el-row justify="center">
-      <el-col :lg="14" xs="24">
-        <PlusForm
-          v-model="state"
-          :rules="rules"
-          :group="group"
-          label-position="right"
-          resetText="重置"
-          submitText="保存"
-          footerAlign="center"
-          labelWidth="120px"
-          :submitLoading="submitLoading"
-          @submit="handleSubmit"
-          @submit-error="handleSubmitError"
-          @reset="getData"
-        >
-          <template #plus-field-markdown>
-            <el-tag
-              v-for="(val, key) in state.markdown"
-              :key="key"
-              class="mx-1 cursor-pointer mt-1"
-              style="margin: 1px 1px 0 1px"
-              :closable="key !== 'template'"
-              @close="closeTag('markdown:' + key)"
-              @click="showDialog('修改Markdown模版', String(key), markdown)"
-            >
-              {{ key }}
-            </el-tag>
-            <el-button
-              class="button-new-tag ml-1"
-              size="small"
-              @click="showDialog('增加Markdown模版', null, markdown)"
-            >
-              新增
-            </el-button>
-          </template>
-          <template #plus-field-customMD>
-            <el-tag
-              v-for="(val, key) in state.customMD"
-              :key="key"
-              class="mx-1 cursor-pointer mt-1"
-              closable
-              @close="closeTag('customMD:' + key)"
-              @click="showDialog('修改自定义Markdown模版', key, customMD)"
-            >
-              {{ key }}
-            </el-tag>
-            <el-button
-              class="button-new-tag ml-1"
-              size="small"
-              @click="showDialog('增加自定义Markdown模版', null, customMD)"
-            >
-              新增
-            </el-button>
-          </template>
-          <template #plus-field-mdSuffix>
-            <el-tag
-              v-for="(val, key) in state.mdSuffix"
-              :key="key"
-              class="mx-1 cursor-pointer mt-1"
-              closable
-              @close="closeTag('mdSuffix:' + key)"
-              @click="showDialog('修改Markdown附加值', key, mdSuffix)"
-            >
-              {{ key }}
-            </el-tag>
-            <el-button
-              class="button-new-tag ml-1"
-              size="small"
-              @click="showDialog('增加Markdown附加值', null, mdSuffix)"
-            >
-              新增
-            </el-button>
-          </template>
-          <template #plus-field-btnSuffix>
-            <el-tag
-              v-for="(val, key) in state.btnSuffix"
-              :key="key"
-              class="mx-1 cursor-pointer mt-1"
-              closable
-              @close="closeTag('btnSuffix:' + key)"
-              @click="showDialog('修改按钮附加值', key, btnSuffix)"
-            >
-              {{ key }}
-            </el-tag>
-            <el-button
-              class="button-new-tag ml-1"
-              size="small"
-              @click="showDialog('增加按钮附加值', null, btnSuffix)"
-            >
-              新增
-            </el-button>
-          </template>
-          <template #plus-field-filterLog>
-            <el-tag
-              v-for="(val, key) in state.filterLog"
-              :key="key"
-              class="mx-1 cursor-pointer mt-1"
-              closable
-              @close="closeTag('filterLog:' + key)"
-              @click="showDialog('修改过滤日志', key, filterLog)"
-            >
-              {{ key }}
-            </el-tag>
-            <el-button
-              class="button-new-tag ml-1"
-              size="small"
-              @click="showDialog('增加过滤日志', null, filterLog)"
-            >
-              新增
-            </el-button>
-          </template>
-          <template #plus-field-token>
-            <el-tag
-              v-for="(val, index) in state.token"
-              :key="val.uin"
-              class="mx-1 cursor-pointer mt-1"
-              closable
-              @close="closeTokenTag(val.uin)"
-              @click="showDialog('修改Token', String(index), token)"
-            >
-              {{ val.uin }}
-            </el-tag>
-            <el-button
-              class="button-new-tag ml-1"
-              size="small"
-              @click="showDialog('增加Token', null, token)"
-            >
-              新增
-            </el-button>
-          </template>
-        </PlusForm>
+      <el-col :xl="18" :lg="20" :md="22" :sm="24" :xs="24">
+        <section class="hero-panel">
+          <div class="hero-copy">
+            <span class="eyebrow">QQBot Plugin Console</span>
+            <h1>设置中心</h1>
+            <p>
+              面向消息转发、Markdown、统计与图床上传的一体化控制台。
+              当前图片上传渠道为
+              <strong>{{ activeUploadLabel }}</strong>
+              ，你可以在下方快速切换并保存。
+            </p>
+          </div>
+          <div class="hero-badge">
+            <span class="hero-badge-label">运行模式</span>
+            <strong>{{ state.bot.sandbox ? "Sandbox" : "Production" }}</strong>
+          </div>
+        </section>
+
+        <section class="stats-grid">
+          <article
+            v-for="item in dashboardStats"
+            :key="item.label"
+            class="stat-card"
+          >
+            <span class="stat-label">{{ item.label }}</span>
+            <strong class="stat-value">{{ item.value }}</strong>
+            <p class="stat-desc">{{ item.desc }}</p>
+          </article>
+        </section>
+
+        <section class="form-shell">
+          <div class="form-shell__header">
+            <div>
+              <span class="eyebrow">Visual Control</span>
+              <h2>参数配置</h2>
+            </div>
+            <div class="status-pills">
+              <span class="status-pill">
+                图片上传 {{ state.toBotUpload ? "已启用" : "已关闭" }}
+              </span>
+              <span class="status-pill accent">
+                {{ activeUploadLabel }}
+              </span>
+            </div>
+          </div>
+
+          <PlusForm
+            v-model="state"
+            class="settings-form"
+            :rules="rules"
+            :group="group"
+            label-position="right"
+            resetText="重置"
+            submitText="保存"
+            footerAlign="center"
+            labelWidth="120px"
+            :submitLoading="submitLoading"
+            @submit="handleSubmit"
+            @submit-error="handleSubmitError"
+            @reset="getData"
+          >
+            <template #plus-field-markdown>
+              <div class="tag-field">
+                <el-tag
+                  v-for="(val, key) in state.markdown"
+                  :key="key"
+                  class="config-tag cursor-pointer"
+                  :closable="key !== 'template'"
+                  @close="closeTag('markdown:' + key)"
+                  @click="showDialog('修改Markdown模版', String(key), markdown)"
+                >
+                  {{ key }}
+                </el-tag>
+                <el-button
+                  class="button-new-tag"
+                  size="small"
+                  @click="showDialog('增加Markdown模版', null, markdown)"
+                >
+                  新增
+                </el-button>
+              </div>
+            </template>
+            <template #plus-field-customMD>
+              <div class="tag-field">
+                <el-tag
+                  v-for="(val, key) in state.customMD"
+                  :key="key"
+                  class="config-tag cursor-pointer"
+                  closable
+                  @close="closeTag('customMD:' + key)"
+                  @click="showDialog('修改自定义Markdown模版', key, customMD)"
+                >
+                  {{ key }}
+                </el-tag>
+                <el-button
+                  class="button-new-tag"
+                  size="small"
+                  @click="showDialog('增加自定义Markdown模版', null, customMD)"
+                >
+                  新增
+                </el-button>
+              </div>
+            </template>
+            <template #plus-field-mdSuffix>
+              <div class="tag-field">
+                <el-tag
+                  v-for="(val, key) in state.mdSuffix"
+                  :key="key"
+                  class="config-tag cursor-pointer"
+                  closable
+                  @close="closeTag('mdSuffix:' + key)"
+                  @click="showDialog('修改Markdown附加值', key, mdSuffix)"
+                >
+                  {{ key }}
+                </el-tag>
+                <el-button
+                  class="button-new-tag"
+                  size="small"
+                  @click="showDialog('增加Markdown附加值', null, mdSuffix)"
+                >
+                  新增
+                </el-button>
+              </div>
+            </template>
+            <template #plus-field-btnSuffix>
+              <div class="tag-field">
+                <el-tag
+                  v-for="(val, key) in state.btnSuffix"
+                  :key="key"
+                  class="config-tag cursor-pointer"
+                  closable
+                  @close="closeTag('btnSuffix:' + key)"
+                  @click="showDialog('修改按钮附加值', key, btnSuffix)"
+                >
+                  {{ key }}
+                </el-tag>
+                <el-button
+                  class="button-new-tag"
+                  size="small"
+                  @click="showDialog('增加按钮附加值', null, btnSuffix)"
+                >
+                  新增
+                </el-button>
+              </div>
+            </template>
+            <template #plus-field-filterLog>
+              <div class="tag-field">
+                <el-tag
+                  v-for="(val, key) in state.filterLog"
+                  :key="key"
+                  class="config-tag cursor-pointer"
+                  closable
+                  @close="closeTag('filterLog:' + key)"
+                  @click="showDialog('修改过滤日志', key, filterLog)"
+                >
+                  {{ key }}
+                </el-tag>
+                <el-button
+                  class="button-new-tag"
+                  size="small"
+                  @click="showDialog('增加过滤日志', null, filterLog)"
+                >
+                  新增
+                </el-button>
+              </div>
+            </template>
+            <template #plus-field-token>
+              <div class="tag-field">
+                <el-tag
+                  v-for="(val, index) in state.token"
+                  :key="val.uin"
+                  class="config-tag cursor-pointer"
+                  closable
+                  @close="closeTokenTag(val.uin)"
+                  @click="showDialog('修改Token', String(index), token)"
+                >
+                  {{ val.uin }}
+                </el-tag>
+                <el-button
+                  class="button-new-tag"
+                  size="small"
+                  @click="showDialog('增加Token', null, token)"
+                >
+                  新增
+                </el-button>
+              </div>
+            </template>
+          </PlusForm>
+        </section>
       </el-col>
     </el-row>
   </div>
 </template>
 
 <style scoped>
+@import url("https://fonts.googleapis.com/css2?family=Fira+Code:wght@500;600&family=Fira+Sans:wght@400;500;600;700&display=swap");
+
+:global(body) {
+  font-family: "Fira Sans", sans-serif;
+}
+
+.settings-page {
+  --page-bg: #f3f7fd;
+  --panel-bg: rgba(255, 255, 255, 0.68);
+  --panel-border: rgba(255, 255, 255, 0.52);
+  --panel-shadow: 0 28px 60px rgba(59, 130, 246, 0.12);
+  --text-main: #16314f;
+  --text-soft: #57718f;
+  --line-soft: rgba(109, 146, 191, 0.18);
+  --accent-blue: #3b82f6;
+  --accent-orange: #f97316;
+  min-height: 100%;
+  padding: 28px 18px 40px;
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 32%),
+    radial-gradient(circle at right 20%, rgba(249, 115, 22, 0.14), transparent 24%),
+    linear-gradient(180deg, #f8fbff 0%, var(--page-bg) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.settings-glow {
+  position: absolute;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  filter: blur(30px);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.settings-glow-left {
+  top: -120px;
+  left: -100px;
+  background: rgba(59, 130, 246, 0.18);
+}
+
+.settings-glow-right {
+  top: 180px;
+  right: -120px;
+  background: rgba(249, 115, 22, 0.16);
+}
+
+.hero-panel,
+.form-shell,
+.stat-card {
+  position: relative;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: var(--panel-shadow);
+}
+
+.hero-panel {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px 30px;
+  border-radius: 28px;
+  margin-bottom: 22px;
+}
+
+.hero-copy {
+  max-width: 680px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  color: var(--accent-blue);
+  font-family: "Fira Code", monospace;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero-copy h1,
+.form-shell__header h2 {
+  margin: 14px 0 10px;
+  color: var(--text-main);
+  font-size: clamp(30px, 4vw, 40px);
+  line-height: 1.1;
+}
+
+.form-shell__header h2 {
+  font-size: 24px;
+}
+
+.hero-copy p,
+.stat-desc {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--text-soft);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.hero-badge {
+  min-width: 180px;
+  align-self: flex-start;
+  padding: 18px 20px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(96, 165, 250, 0.72));
+  color: #fff;
+  box-shadow: 0 18px 38px rgba(59, 130, 246, 0.24);
+}
+
+.hero-badge-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.hero-badge strong {
+  font-family: "Fira Code", monospace;
+  font-size: 20px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.stat-card {
+  padding: 20px;
+  border-radius: 22px;
+}
+
+.stat-label {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--text-soft);
+  font-size: 13px;
+}
+
+.stat-value {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-main);
+  font-family: "Fira Code", monospace;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.form-shell {
+  border-radius: 30px;
+  padding: 24px;
+}
+
+.form-shell__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.status-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.status-pill {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(59, 130, 246, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--text-main);
+  font-size: 13px;
+}
+
+.status-pill.accent {
+  background: rgba(249, 115, 22, 0.1);
+  border-color: rgba(249, 115, 22, 0.18);
+  color: #b45309;
+}
+
+.tag-field {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.config-tag {
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(59, 130, 246, 0.14);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--text-main);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.config-tag:hover {
+  transform: translateY(-1px);
+  border-color: rgba(59, 130, 246, 0.26);
+  box-shadow: 0 10px 18px rgba(59, 130, 246, 0.12);
+}
+
+.button-new-tag {
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+}
+
 .cursor-pointer {
   cursor: pointer;
 }
 
-.mx-1 {
-  margin-right: 0.25rem;
-  margin-left: 0.25rem;
+:deep(.settings-form .plus-form-group) {
+  margin-bottom: 18px;
+  border-radius: 24px;
+  border: 1px solid var(--line-soft);
+  background: rgba(255, 255, 255, 0.45);
+  padding: 10px 14px 4px;
 }
 
-.mt-1 {
-  margin-top: 0.25rem;
+:deep(.settings-form .plus-form-group__title) {
+  color: var(--text-main);
+  font-weight: 700;
+  font-size: 18px;
 }
 
-.ml-1 {
-  margin-left: 0.25rem;
+:deep(.settings-form .el-form-item__label) {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+:deep(.settings-form .el-input__wrapper),
+:deep(.settings-form .el-textarea__inner),
+:deep(.settings-form .el-input-number),
+:deep(.settings-form .el-select__wrapper) {
+  border-radius: 16px;
+}
+
+:deep(.settings-form .el-switch) {
+  min-height: 32px;
+}
+
+:deep(.settings-form .plus-form__footer) {
+  padding-top: 18px;
+}
+
+:deep(.settings-form .plus-form__footer .el-button) {
+  min-width: 120px;
+  min-height: 44px;
+  border-radius: 999px;
+}
+
+:deep(.settings-form .plus-form__footer .el-button--primary) {
+  background: linear-gradient(135deg, var(--accent-blue), #60a5fa);
+  border-color: transparent;
+  box-shadow: 0 14px 26px rgba(59, 130, 246, 0.2);
+}
+
+:deep(.settings-form .el-radio-group) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+:deep(.settings-form .el-radio) {
+  margin-right: 0;
+}
+
+@media (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hero-panel,
+  .form-shell__header {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 768px) {
+  .settings-page {
+    padding: 18px 12px 28px;
+  }
+
+  .hero-panel,
+  .form-shell {
+    padding: 20px 16px;
+    border-radius: 24px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .config-tag,
+  :deep(.settings-form .plus-form__footer .el-button--primary) {
+    transition: none;
+  }
 }
 </style>

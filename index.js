@@ -13,6 +13,7 @@ import {
   config,
   configSave,
   refConfig,
+  uploadImageByProvider,
   splitMarkDownTemplate,
   getMustacheTemplating
 } from './Model/index.js'
@@ -92,17 +93,28 @@ const adapter = new class QQBotAdapter {
   }
 
   async makeBotImage (file) {
-    if (config.toBotUpload) {
-      for (const i of Bot.uin) {
-        if (!Bot[i].uploadImage) continue
-        try {
-          const image = await Bot[i].uploadImage(file)
-          if (image.url) return image
-        } catch (err) {
-          Bot.makeLog('error', ['Bot', i, '图片上传错误', file, err])
-        }
+    if (!config.toBotUpload) return false
+
+    if (config.imageUploadProvider && config.imageUploadProvider !== 'bot') {
+      try {
+        const image = await uploadImageByProvider(config.imageUploadProvider, file)
+        if (image?.url) return image
+      } catch (err) {
+        Bot.makeLog('error', ['图片上传错误', config.imageUploadProvider, err])
+      }
+      return false
+    }
+
+    for (const i of Bot.uin) {
+      if (!Bot[i].uploadImage) continue
+      try {
+        const image = await Bot[i].uploadImage(file)
+        if (image.url) return image
+      } catch (err) {
+        Bot.makeLog('error', ['Bot', i, '图片上传错误', file, err])
       }
     }
+    return false
   }
 
   async makeMarkdownImage (data, file, summary = '图片') {
@@ -1509,6 +1521,24 @@ const setMap = {
   用户统计: 'userStats'
 }
 
+function getImageUploadProviderLabel () {
+  switch (config.imageUploadProvider) {
+    case 'chatglm':
+      return 'ChatGLM图床'
+    case 'ukaka':
+      return 'Ukaka签名图床'
+    case 'xingye':
+      return '星野图床'
+    default:
+      return 'Bot图链'
+  }
+}
+
+function getUploadStatusText () {
+  if (!config.toBotUpload) return '关闭'
+  return `开启(${getImageUploadProviderLabel()})`
+}
+
 export class QQBotAdapter extends plugin {
   constructor () {
     super({
@@ -1584,6 +1614,7 @@ export class QQBotAdapter extends plugin {
         { text: '用户统计', callback: '#QQBot用户统计' }
       ],
       [
+        { text: `图片上传:${getUploadStatusText()}`, callback: '#QQBot帮助' },
         { text: `${config.toCallback ? '关闭' : '开启'}按钮回调`, callback: `#QQBot设置按钮回调${config.toCallback ? '关闭' : '开启'}` },
         { text: `${config.callStats ? '关闭' : '开启'}调用统计`, callback: `#QQBot设置调用统计${config.callStats ? '关闭' : '开启'}` }
       ],
