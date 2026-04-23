@@ -1,86 +1,107 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from "vue";
 import { type PropType, useDark, useECharts } from "@pureadmin/utils";
+import { computed, nextTick, ref, watch } from "vue";
 
 const props = defineProps({
   chartData: {
     type: Array as PropType<{ value: string | number; name: string }[]>,
     required: true,
   },
-  loading: {
-    type: Boolean,
-  },
 });
 
-// 兼容dark主题
-const { isDark } = useDark();
-let theme = computed(() => {
-  return isDark.value ? "dark" : "default";
-});
-
-// 初始化ECharts
 const chartRef = ref();
+const { isDark } = useDark();
+const theme = computed(() => (isDark.value ? "dark" : "default"));
+const textColor = computed(() => (isDark.value ? "#d8e4f5" : "#4b6580"));
+
 const { setOptions } = useECharts(chartRef, { theme });
 
-// watch(
-//   () => props.loading,
-//   async () => {
-//     await nextTick(); // 确保DOM更新完成后再执行
+watch(
+  () => [props.chartData, isDark.value],
+  async () => {
+    await nextTick();
     setOptions({
+      color: ["#3B82F6", "#60A5FA", "#F97316", "#14B8A6", "#8B5CF6", "#F59E0B", "#10B981"],
       tooltip: {
         trigger: "item",
-        position: function (point, params, dom, rect, size) {
-          const x = point[0];
-          const chartWidth = size.viewSize[0];
-          if (x < chartWidth / 2) {
-            return [x + 20, point[1]];
-          } else {
-            if (dom instanceof HTMLDivElement) {
-              return [x - dom.offsetWidth - 20, point[1]];
-            } else {
-              return [x - 100, point[1]];
-            }
-          }
+        backgroundColor: isDark.value ? "rgba(11,18,32,0.9)" : "rgba(255,255,255,0.96)",
+        textStyle: {
+          color: textColor.value,
         },
-        formatter: "{b}<br/>{c}次 ({d}%)",
+        formatter: "{b}<br/>{c} 次 ({d}%)",
+      },
+      legend: {
+        bottom: 0,
+        type: "scroll",
+        icon: "circle",
+        textStyle: {
+          color: textColor.value,
+        },
       },
       series: [
         {
           name: "调用统计",
           type: "pie",
-          roseType: "area",
-          radius: ["20%", "70%"],
-          avoidLabelOverlap: false,
+          radius: ["32%", "74%"],
+          center: ["50%", "45%"],
+          roseType: "radius",
+          padAngle: 3,
           itemStyle: {
-            borderRadius: 10,
-            borderColor: "#fff",
-            borderWidth: 2,
+            borderRadius: 14,
+            borderColor: isDark.value ? "#0b1220" : "#ffffff",
+            borderWidth: 3,
           },
-          data: props.chartData,
           label: {
-            formatter: function (params) {
-              const reg = /^(.+)\((.+)\)$/;
-              if (reg.test(params.name)) {
-                const [, name, fun] = params.name.match(/^(.+)\((.+)\)$/);
-                return `${name}\n${fun}`;
-              } else {
-                return params.name;
-              }
+            color: textColor.value,
+            formatter: params => {
+              const match = /^(.+)\((.+)\)$/.exec(params.name);
+              if (!match) return params.name;
+              return `${match[1]}\n${match[2]}`;
             },
           },
           labelLine: {
-            length: 5, // 指引线的长度
-            length2: 5, // 第二段线的长度
-            minTurnAngle: 30, // 强制线条转向一定角度
-            smooth: true, // 平滑的指引线
+            length: 10,
+            length2: 10,
+            smooth: true,
           },
+          emphasis: {
+            scale: true,
+            scaleSize: 8,
+          },
+          data: props.chartData,
         },
       ],
     });
-//   }
-// );
+  },
+  {
+    deep: true,
+    immediate: true,
+  }
+);
 </script>
 
 <template>
-  <div ref="chartRef" style="width: 100%; height: 370px" />
+  <div class="chart-surface">
+    <div ref="chartRef" class="chart-canvas" />
+  </div>
 </template>
+
+<style scoped>
+.chart-surface {
+  width: 100%;
+  min-height: 370px;
+}
+
+.chart-canvas {
+  width: 100%;
+  height: 370px;
+}
+
+@media (max-width: 768px) {
+  .chart-surface,
+  .chart-canvas {
+    min-height: 320px;
+    height: 320px;
+  }
+}
+</style>
