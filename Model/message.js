@@ -32,7 +32,17 @@ async function appendFileResults (adapter, data, rets) {
   rets.data.push(...fileRets.map(i => i.data))
 }
 
-export async function makeRawMarkdownMsg (ctx, data, msg) {
+export async function makeRawMarkdownMsg (ctx, data, msg, skipHandle = false) {
+  if (!skipHandle && Handler.has('QQBot.makeRawMarkdownMsg')) {
+    const res = await Handler.call('QQBot.makeRawMarkdownMsg', data, {
+      ctx,
+      data,
+      msg,
+      make: nextMsg => makeRawMarkdownMsg(ctx, data, nextMsg ?? msg, true)
+    })
+    if (res !== false && res !== undefined && res !== null) return res
+  }
+
   const { adapter } = ctx
   const messages = []
   const button = []
@@ -78,7 +88,7 @@ export async function makeRawMarkdownMsg (ctx, data, msg) {
         continue
       case 'node':
         for (const { message } of i.data) {
-          messages.push(...(await makeRawMarkdownMsg(ctx, data, message)))
+          messages.push(...(await makeRawMarkdownMsg(ctx, data, message, true)))
         }
         continue
       case 'raw':
@@ -192,7 +202,17 @@ export function makeMarkdownTemplate (ctx, data, template) {
   return result
 }
 
-export async function makeMarkdownMsg (ctx, data, msg) {
+export async function makeMarkdownMsg (ctx, data, msg, skipHandle = false) {
+  if (!skipHandle && Handler.has('QQBot.makeMarkdownMsg')) {
+    const res = await Handler.call('QQBot.makeMarkdownMsg', data, {
+      ctx,
+      data,
+      msg,
+      make: nextMsg => makeMarkdownMsg(ctx, data, nextMsg ?? msg, true)
+    })
+    if (res !== false && res !== undefined && res !== null) return res
+  }
+
   const { adapter, markdownTemplate, tmplPkg, userIdCache } = ctx
   const messages = []
   const button = []
@@ -272,11 +292,11 @@ export async function makeMarkdownMsg (ctx, data, msg) {
             button.push(...adapter.makeButtons(data, item.data ? item.data : [item]))
           }
         } else if (tmplPkg?.nodeMsg) {
-          messages.push(...(await makeMarkdownMsg(ctx, data, tmplPkg.nodeMsg(i.data))))
+          messages.push(...(await makeMarkdownMsg(ctx, data, tmplPkg.nodeMsg(i.data), true)))
           continue
         } else {
           for (const { message } of i.data) {
-            messages.push(...(await makeMarkdownMsg(ctx, data, message)))
+            messages.push(...(await makeMarkdownMsg(ctx, data, message, true)))
           }
           continue
         }
@@ -356,7 +376,17 @@ export async function makeMarkdownMsg (ctx, data, msg) {
   return messages
 }
 
-export async function makeMsg (ctx, data, msg) {
+export async function makeMsg (ctx, data, msg, skipHandle = false) {
+  if (!skipHandle && Handler.has('QQBot.makeMsg')) {
+    const res = await Handler.call('QQBot.makeMsg', data, {
+      ctx,
+      data,
+      msg,
+      make: nextMsg => makeMsg(ctx, data, nextMsg ?? msg, true)
+    })
+    if (res !== false && res !== undefined && res !== null) return res
+  }
+
   const { adapter } = ctx
   const sendType = ['audio', 'image', 'video', 'file']
   const messages = []
@@ -414,7 +444,7 @@ export async function makeMsg (ctx, data, msg) {
           }
         } else {
           for (const { message: nodeMessage } of i.data) {
-            messages.push(...(await makeMsg(ctx, data, nodeMessage)))
+            messages.push(...(await makeMsg(ctx, data, nodeMessage, true)))
           }
         }
         break
